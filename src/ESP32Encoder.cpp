@@ -58,6 +58,8 @@ ESP32Encoder::ESP32Encoder(bool always_interrupt_, enc_isr_cb_t enc_isr_cb, void
 	{
 		_enc_isr_cb_data = this;
 	}
+
+	setStartPCNTUnit();
 }
 
 ESP32Encoder::~ESP32Encoder() {}
@@ -81,7 +83,6 @@ ESP32Encoder::~ESP32Encoder() {}
 	#define COUNTER_H_LIM h_lim_lat
 	#define COUNTER_L_LIM l_lim_lat
 #endif
-
 
 
 static void esp32encoder_pcnt_intr_handler(void *arg) {
@@ -112,7 +113,16 @@ static void esp32encoder_pcnt_intr_handler(void *arg) {
 
 
 
+void ESP32Encoder::setStartPCNTUnit(int pcnt_unit_start, bool bypassIsrInstall)
+{
+	if (pcnt_unit_start > PCNT_UNIT_MAX - 1)
+	{
+		pcnt_unit_start = PCNT_UNIT_MAX - 1;
+	}
 
+	_pcnt_unit_start = pcnt_unit_start;
+	_bypass_isr_install = bypassIsrInstall;
+}
 
 void ESP32Encoder::detach(){
 	pcnt_counter_pause(unit);
@@ -135,7 +145,7 @@ void ESP32Encoder::attach(int a, int b, encType et) {
 		ESP_LOGE(TAG_ENCODER, "attach: already attached");
 		return;
 	}
-	int index = 0;
+	int index = 0 + _pcnt_unit_start;
 	for (; index < MAX_ESP32_ENCODERS; index++) {
 		if (ESP32Encoder::encoders[index] == NULL) {
 			encoders[index] = this;
@@ -218,7 +228,7 @@ void ESP32Encoder::attach(int a, int b, encType et) {
 	pcnt_event_enable(unit, PCNT_EVT_L_LIM);
 	pcnt_counter_pause(unit); // Initial PCNT init
 	/* Register ISR service and enable interrupts for PCNT unit */
-	if(! attachedInterrupt){
+	if(! attachedInterrupt && !_bypass_isr_install){
 #ifdef CONFIG_IDF_TARGET_ESP32S2 // esp32-s2 is single core, no ipc call
 			esp_err_t er = pcnt_isr_service_install(0);
 			if (er != ESP_OK){

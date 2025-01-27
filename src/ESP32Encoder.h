@@ -65,6 +65,9 @@ public:
 	static uint32_t isrServiceCpuCore;
 	enc_isr_cb_t _enc_isr_cb;
 	void* _enc_isr_cb_data;
+	int _pcnt_unit_start;
+	bool _bypass_isr_install;
+	void setStartPCNTUnit(int pcnt_unit_start = 0, bool bypassIsrInstall = false);
 
 private:
 	static bool attachedInterrupt;
